@@ -596,16 +596,16 @@ class Instagram
         $apiCall = self::API_URL . $function . $authMethod . (('GET' === $method) ? $paramString : null);
 
         // signed header of POST/DELETE requests
-        $headerData = array('Accept: application/json');
+        $headerData = array('accept'=>'application/json');
 
         if ($this->_signedheader && 'GET' !== $method) {
-            $headerData[] = 'X-Insta-Forwarded-For: ' . $this->_signHeader();
+            $headerData[] = array('X-Insta-Forwarded-For'=>$this->_signHeader());
         }
-
+        
         $args = array(
             'method' => $method,
             'timeout' => 5,
-            'headers' => array('accept'=>'application/json'),
+            'headers' => $headerData,
         );        
         
         if ('POST' === $method) {
