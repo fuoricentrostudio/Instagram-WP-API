@@ -1,6 +1,6 @@
 <?php
 
-namespace MetzWeb\Instagram;
+namespace FuoricentroStudio\WP\API;
 
 /**
  * Instagram API class
@@ -602,41 +602,26 @@ class Instagram
             $headerData[] = 'X-Insta-Forwarded-For: ' . $this->_signHeader();
         }
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $apiCall);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headerData);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_HEADER, true);
+        $args = array(
+            'method' => $method,
+            'timeout' => 5,
+            'headers' => array('accept'=>'application/json'),
+        );        
+        
+        if ('POST' === $method) {
+            $args['body'] = $params;
+        } 
 
-        switch ($method) {
-            case 'POST':
-                curl_setopt($ch, CURLOPT_POST, count($params));
-                curl_setopt($ch, CURLOPT_POSTFIELDS, ltrim($paramString, '&'));
-                break;
-            case 'DELETE':
-                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-                break;
-        }
-
-        $jsonData = curl_exec($ch);
-        // split header from JSON data
-        // and assign each to a variable
-        list($headerContent, $jsonData) = explode("\r\n\r\n", $jsonData, 2);
-
-        // convert header content into an array
-        $headers = $this->processHeaders($headerContent);
-
+        $response = wp_remote_request($apiCall, $args);
+        
+        $jsonData = wp_remote_retrieve_body($response);
+        
         // get the 'X-Ratelimit-Remaining' header value
-        $this->_xRateLimitRemaining = $headers['X-Ratelimit-Remaining'];
+        $this->_xRateLimitRemaining = wp_remote_retrieve_header($response,'x-ratelimit-remaining');
 
         if (!$jsonData) {
-            throw new InstagramException('Error: _makeCall() - cURL error: ' . curl_error($ch));
+            throw new InstagramException('Error: _makeCall() - Stream error: ' . wp_remote_retrieve_response_message($response));
         }
-
-        curl_close($ch);
 
         return json_decode($jsonData);
     }
@@ -654,21 +639,20 @@ class Instagram
     {
         $apiHost = self::API_OAUTH_TOKEN_URL;
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $apiHost);
-        curl_setopt($ch, CURLOPT_POST, count($apiData));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($apiData));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: application/json'));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-        $jsonData = curl_exec($ch);
-
+        $args = array(
+           'method' => 'POST',
+           'timeout' => 5,
+           'headers' => array('accept'=>'application/json'),
+           'body' => $apiData,
+        );        
+        
+        $response = wp_remote_request($apiHost, $args);
+        
+        $jsonData = wp_remote_retrieve_body($response);
+        
         if (!$jsonData) {
-            throw new InstagramException('Error: _makeOAuthCall() - cURL error: ' . curl_error($ch));
+            throw new InstagramException('Error: _makeOAuthCall() - Stream error: ' . wp_remote_retrieve_response_message($response));
         }
-
-        curl_close($ch);
 
         return json_decode($jsonData);
     }
